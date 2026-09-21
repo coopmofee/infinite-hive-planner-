@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite BSS Hive Planner</title>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --panel-bg: #16213e;
+            --accent-color: #0f3460;
+            --text-color: #e94560;
+            --slot-bg: #222831;
+            --slot-border: #393e46;
+            
+            /* Rarity Colors */
+            --common-color: #95a5a6;
+            --rare-color: #3498db;
+            --epic-color: #9b59b6;
+            --legendary-color: #f1c40f;
+            --mythic-color: #e74c3c;
+            --event-color: #e67e22;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: #ffffff;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            color: #f39c12;
+            text-shadow: 2px 2px #c0392b;
+            margin-bottom: 5px;
+        }
+
+        p.subtitle {
+            color: #bdc3c7;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+
+        .main-container {
+            display: flex;
+            gap: 20px;
+            max-width: 1200px;
+            width: 100%;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        /* Sidebar / Palette */
+        .palette-panel {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 15px;
+            width: 320px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+        }
+
+        .palette-panel h3 {
+            margin-top: 0;
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 8px;
+            color: #f1c40f;
+        }
+
+        .rarity-section {
+            margin-bottom: 15px;
+        }
+
+        .rarity-title {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .bee-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+        }
+
+        .bee-item {
+            width: 45px;
+            height: 45px;
+            background-color: var(--slot-bg);
+            border: 2px solid var(--slot-border);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: grab;
+            font-size: 1.2rem;
+            user-select: none;
+            transition: transform 0.1s, border-color 0.2s;
+            position: relative;
+        }
+
+        .bee-item:hover {
+            transform: scale(1.08);
+            border-color: #fff;
+        }
+
+        .bee-item:active {
+            cursor: grabbing;
+        }
+
+        /* Hive Board Panel */
+        .hive-panel {
+            background-color: var(--panel-bg);
+            border: 2px solid var(--accent-color);
+            border-radius: 12px;
+            padding: 20px;
+            flex-grow: 1;
+            min-width: 350px;
+            max-width: 700px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hive-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .stats-badge {
+            background: var(--accent-color);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        /* Infinite Hive Grid */
+        .hive-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 65px);
+            gap: 8px;
+            max-height: 500px;
+            overflow-y: auto;
+            padding: 10px;
+            width: 100%;
+            justify-content: center;
+            border: 1px dashed var(--slot-border);
+            border-radius: 8px;
+            background: rgba(0,0,0,0.2);
+        }
+
+        .hive-slot {
+            width: 65px;
+            height: 65px;
+            background-color: var(--slot-bg);
+            border: 2px solid var(--slot-border);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .hive-slot:hover {
+            border-color: #f1c40f;
+            background-color: #2b303c;
+        }
+
+        .hive-slot.drag-over {
+            border-color: #e94560;
+            background-color: #3a2e39;
+        }
+
+        /* Placed Bee styling inside slot */
+        .hive-slot.filled {
+            border-color: #f39c12;
+        }
+
+        .hive-slot.gifted {
+            border-color: #9b59b6;
+            box-shadow: 0 0 8px rgba(155, 89, 182, 0.6);
+            background: radial-gradient(circle, #34224a 0%, var(--slot-bg) 80%);
+        }
+
+        .hive-slot span.bee-emoji {
+            font-size: 1.8rem;
+        }
+
+        .hive-slot .bee-lvl {
+            position: absolute;
+            bottom: 2px;
+            right: 4px;
+            font-size: 0.65rem;
+            background: rgba(0,0,0,0.7);
+            padding: 1px 3px;
+            border-radius: 4px;
+            color: #f1c40f;
+        }
+
+        /* Controls Layout */
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        button {
+            background-color: #e94560;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #ff6b81;
+        }
+
+        button.secondary {
+            background-color: #0f3460;
+            border: 1px solid #e94560;
+        }
+        button.secondary:hover {
+            background-color: #1a4b8c;
+        }
+
+        /* Modal Overlay for customizing a bee */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--panel-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 2px solid var(--text-color);
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .modal-content h3 {
+            margin: 0 0 10px 0;
+            color: #f1c40f;
+        }
+
+        .modal-content label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Infinite BSS Hive Builder</h1>
+    <p class="subtitle">Drag & Drop or click bees onto slots. Add rows infinitely!</p>
+
+    <div class="main-container">
+        <!-- Sidebar Palette of Bees -->
+        <div class="palette-panel">
+            <h3>Bee Rarity Palette</h3>
+            
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--common-color);">Common</div>
+                <div class="bee-grid" id="palette-Common"></div>
+            </div>
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--rare-color);">Rare</div>
+                <div class="bee-grid" id="palette-Rare"></div>
+            </div>
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--epic-color);">Epic</div>
+                <div class="bee-grid" id="palette-Epic"></div>
+            </div>
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--legendary-color);">Legendary</div>
+                <div class="bee-grid" id="palette-Legendary"></div>
+            </div>
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--mythic-color);">Mythic</div>
+                <div class="bee-grid" id="palette-Mythic"></div>
+            </div>
+            <div class="rarity-section">
+                <div class="rarity-title" style="color: var(--event-color);">Event</div>
+                <div class="bee-grid" id="palette-Event"></div>
+            </div>
+        </div>
+
+        <!-- Hive Board -->
+        <div class="hive-panel">
+            <div class="hive-header">
+                <h3>Your Hive Layout</h3>
+                <div class="stats-badge" id="bee-count-badge">Total Bees: 0</div>
+            </div>
+
+            <!-- The Infinite Grid Container -->
+            <div class="hive-grid" id="hive-grid">
+                <!-- Slots injected dynamically -->
+            </div>
+
+            <div class="controls">
+                <button onclick="addRows(1)">+ 5 Slots (1 Row)</button>
+                <button onclick="addRows(5)">+ 25 Slots (5 Rows)</button>
+                <button class="secondary" onclick="clearHive()">Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Configuration Modal for individual bees -->
+    <div class="modal" id="bee-modal">
+        <div class="modal-content">
+            <h3>Configure Bee</h3>
+            <label>
+                Gifted Status:
+                <input type="checkbox" id="modal-gifted">
+            </label>
+            <label>
+                Bee Level:
+                <input type="number" id="modal-level" min="1" max="25" value="10" style="width: 60px; padding: 4px; background: #222; border: 1px solid #444; color: #fff;">
+            </label>
+            <div class="modal-buttons">
+                <button style="background-color: #c0392b;" onclick="removeActiveBee()">Delete Bee</button>
+                <button onclick="closeModal()">Save / Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Bee definitions data model categorized by rarity
+        const beesData = {
+            Common: [
+                { name: "Basic Bee", emoji: "🐝" },
+                { name: "Bumble Bee", emoji: "🐝" },
+                { name: "Courageous Bee", emoji: "🐝" },
+                { name: "Rad Bee", emoji: "🐞" },
+                { name: "Riley Bee", emoji: "🔻" }
+            ],
+            Rare: [
+                { name: "Bucko Bee", emoji: "🔹" },
+                { name: "Cool Bee", emoji: "🧊" },
+                { name: "Endeavor Bee", emoji: "⭐" },
+                { name: "Focus Bee", emoji: "👁️" },
+                { name: "Frosty Bee", emoji: "❄️" },
+                { name: "Honey Bee", emoji: "🍯" },
+                { name: "Looker Bee", emoji: "👀" },
+                { name: "Swift Bee", emoji: "💨" }
+            ],
+            Epic: [
+                { name: "Bomber Bee", emoji: "💣" },
+                { name: "Commander Bee", emoji: "🎖️" },
+                { name: "Demon Bee", emoji: "😈" },
+                { name: "Demetrius Bee", emoji: "🛡️" },
+                { name: "Fire Bee", emoji: "🔥" },
+                { name: "Honey(Epic) Bee", emoji: "👑" },
+                { name: "Music Bee", emoji: "🎵" },
+                { name: "Ninja Bee", emoji: "🥷" },
+                { name: "Rage Bee", emoji: "😡" },
+                { name: "Shy Bee", emoji: "🙈" }
+            ],
+            Legendary: [
+                { name: "Baby Bee", emoji: "👶" },
+                { name: "Carpenter Bee", emoji: "🪵" },
+                { name: "Diamond Bee", emoji: "💎" },
+                { name: "Lion Bee", emoji: "🦁" },
+                { name: "Music(L) Bee", emoji: "🎶" },
+                { name: "Vector Bee", emoji: "📐" }
+            ],
+            Mythic: [
+                { name: "Buoyant Bee", emoji: "🎈" },
+                { name: "Precise Bee", emoji: "🎯" },
+                { name: "Spicy Bee", emoji: "🌶️" },
+                { name: "Tadpole Bee", emoji: " tadpole" },
+                { name: "Vector(M) Bee", emoji: "📊" }
+            ],
+            Event: [
+                { name: "Bear Bee", emoji: "🧸" },
+                { name: "Cobalt Bee", emoji: "📘" },
+                { name: "Crimson Bee", emoji: "📕" },
+                { name: "Digital Bee", emoji: "💻" },
+                { name: "Festive Bee", emoji: "🎄" },
+                { name: "Gummy Bee", emoji: "🟢" },
+                { name: "Photon Bee", emoji: "☀️" },
+                { name: "Puppy Bee", emoji: "🐶" },
+                { name: "Vicious Bee", emoji: "🗡️" },
+                { name: "Windy Bee", emoji: "🌪️" }
+            ]
+        };
+
+        // State variables
+        let totalSlots = 50; // Starts with standard 50 BSS slots, infinitely expandable!
+        let hive = {}; // Maps slot index -> { name, emoji, rarity, gifted, level }
+        let draggedBee = null;
+        let activeModalSlot = null;
+
+        // Initialize Palette UI
+        function initPalette() {
+            for (let rarity in beesData) {
+                const container = document.getElementById(`palette-${rarity}`);
+                if (!container) continue;
+                beesData[rarity].forEach(bee => {
+                    const el = document.createElement('div');
+                    el.className = 'bee-item';
+                    el.innerText = bee.emoji;
+                    el.title = bee.name;
+                    
+                    // Drag events
+                    el.draggable = true;
+                    el.addEventListener('dragstart', (e) => {
+                        draggedBee = { ...bee, rarity, gifted: false, level: 10 };
+                    });
+
+                    container.appendChild(el);
+                });
+            }
+        }
+
+        // Initialize Hive Grid UI
+        function renderHive() {
+            const grid = document.getElementById('hive-grid');
+            grid.innerHTML = '';
+            
+            let filledCount = 0;
+
+            for (let i = 0; i < totalSlots; i++) {
+                const slot = document.createElement('div');
+                slot.className = 'hive-slot';
+                slot.dataset.index = i;
+
+                if (hive[i]) {
+                    filledCount++;
+                    slot.classList.add('filled');
+                    if (hive[i].gifted) slot.classList.add('gifted');
+
+                    slot.innerHTML = `
+                        <span class="bee-emoji">${hive[i].emoji}</span>
+                        <span class="bee-lvl">L${hive[i].level}</span>
+                    `;
+                }
+
+                // Drag and Drop listeners
+                slot.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    slot.classList.add('drag-over');
+                });
+                slot.addEventListener('dragleave', () => {
+                    slot.classList.remove('drag-over');
+                });
+                slot.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    slot.classList.remove('drag-over');
+                    if (draggedBee) {
+                        hive[i] = { ...draggedBee };
+                        renderHive();
+                    }
+                });
+
+                // Click configuration or quick clear
+                slot.addEventListener('click', () => {
+                    if (hive[i]) {
+                        openModal(i);
+                    } else if (draggedBee) {
+                        hive[i] = { ...draggedBee };
+                        renderHive();
+                    }
+                });
+
+                grid.appendChild(slot);
+            }
+
+            document.getElementById('bee-count-badge').innerText = `Total Bees: ${filledCount} / ${totalSlots}`;
+        }
+
+        // Add more slot rows dynamically (infinite scaling)
+        function addRows(numRows) {
+            totalSlots += numRows * 5;
+            renderHive();
+        }
+
+        function clearHive() {
+            if (confirm("Are you sure you want to clear your entire hive?")) {
+                hive = {};
+                renderHive();
+            }
+        }
+
+        // Modal Management for customizing individual hive placements
+        const modal = document.getElementById('bee-modal');
+        const modalGifted = document.getElementById('modal-gifted');
+        const modalLevel = document.getElementById('modal-level');
+
+        function openModal(index) {
+            activeModalSlot = index;
+            const bee = hive[index];
+            modalGifted.checked = bee.gifted;
+            modalLevel.value = bee.level;
+            modal.style.display = 'flex';
+        }
+
+        function closeModal() {
+            if (activeModalSlot !== null && hive[activeModalSlot]) {
+                hive[activeModalSlot].gifted = modalGifted.checked;
+                hive[activeModalSlot].level = parseInt(modalLevel.value) || 1;
+            }
+            modal.style.display = 'none';
+            activeModalSlot = null;
+            renderHive();
+        }
+
+        function removeActiveBee() {
+            if (activeModalSlot !== null) {
+                delete hive[activeModalSlot];
+            }
+            modal.style.display = 'none';
+            activeModalSlot = null;
+            renderHive();
+        }
+
+        // Run Initialization on Load
+        initPalette();
+        renderHive();
+    </script>
+</body>
+</html>
